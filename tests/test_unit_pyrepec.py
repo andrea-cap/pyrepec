@@ -1,23 +1,22 @@
 # -*- coding: utf-8 -*-
-import pytest
 import json
 from unittest.mock import patch
 
+import pytest
 
 from pyrepec import Repec
+from pyrepec.models import (
+    RepecError,
+    RepecJelResult,
+    RepecResultList,
+    RepecSingleResult,
+)
 from pyrepec.repec import (
-    GET_AUTHORS_FOR_ITEM,
     GET_AUTHOR_RECORD_FULL,
+    GET_AUTHORS_FOR_ITEM,
     GET_INST_AUTHORS,
     GET_JEL_FOR_ITEM,
     GET_REF,
-)
-
-from pyrepec.models import (
-    RepecError,
-    RepecResultList,
-    RepecSingleResult,
-    RepecJelResult,
 )
 
 

@@ -10,4 +10,6 @@ The RePEc authors' API is documented here: https://ideas.repec.org/api.html
 
 """
 
-from .repec import Repec
+from .repec import Repec as Repec
+
+__all__ = ["Repec"]

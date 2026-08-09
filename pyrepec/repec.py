@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from .models import RepecError, RepecResultList, RepecSingleResult, RepecJelResult
-
 import requests
 from requests import Response
+
+from .models import RepecError, RepecJelResult, RepecResultList, RepecSingleResult
 
 BASE_URL = "https://api.repec.org/call.cgi"
 
@@ -210,7 +210,6 @@ class Repec:
 
         # Check for errors raised by REPEC API.
         if ERROR in api_data[0]:
-
             # Parse the error from response.
             dict_error = api_data[0]
             err_code = dict_error[ERROR]

@@ -5,19 +5,18 @@ from os import environ as os_env
 from pyrepec import Repec
 from pyrepec.models import (
     RepecError,
+    RepecJelResult,
     RepecResultList,
     RepecSingleResult,
-    RepecJelResult,
 )
 
 
 class TestRepecMethods(unittest.TestCase):
-
     def setUp(self):
 
         try:
             token = os_env["REPEC_TOKEN"]
-        except KeyError as err:
+        except KeyError:
             # msg = "Please make sure that 'REPEC_TOKEN' is configured as environment variable."
             # raise KeyError(msg) from err
             raise unittest.SkipTest("No REPEC_TOKEN, skipping integration tests.")
