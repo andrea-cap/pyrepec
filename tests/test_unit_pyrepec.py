@@ -12,6 +12,7 @@ from pyrepec.models import (
     RepecSingleResult,
 )
 from pyrepec.repec import (
+    BASE_URL,
     ERROR_LOOKUP_URL,
     GET_AUTHOR_RECORD_FULL,
     GET_AUTHORS_FOR_ITEM,
@@ -31,7 +32,7 @@ class MockResponse:
     def __init__(self, url, json_data, should_fail=False, text=None):
         self.url = url
         self.json_data = json_data
-        self.text = json.dumps(json_data) if not text else text
+        self.text = json.dumps(json_data) if text is None else text
         self.should_fail = should_fail
 
     def json(self):
@@ -66,7 +67,7 @@ def mocked_requests(*args, **kwargs):
     if GET_AUTHOR_RECORD_FULL in params:
         shortid = params[GET_AUTHOR_RECORD_FULL]
         if shortid == "someauthorid":
-            return MockResponse(url, [{"key": "value"}])
+            return MockResponse(url, [{"key": "value", "shortid": None}])
 
     if GET_AUTHORS_FOR_ITEM in params:
         handle = params[GET_AUTHORS_FOR_ITEM]
@@ -135,6 +136,7 @@ def test_author_data(mck) -> None:
     assert isinstance(res, RepecSingleResult)
     assert res.error is None
     assert res.data is not None
+    assert res.data["shortid"] == author_id
 
     item_id = "RePEc:dummy"
     res = repec.get_author_data(item_id)
@@ -187,6 +189,8 @@ def test_get_ref_empty(mck) -> None:
     res = repec.get_ref(item_id)
     assert isinstance(res, RepecSingleResult)
     assert res.error is not None
+    assert res.error.code == 404
+    assert res.error.message == "Not found"
     assert res.data == {}
 
 
@@ -208,13 +212,14 @@ def test_get_error(mock_get) -> None:
         [],
         text=(
             "<h1>RePEc API Error lookup</h1>"
-            "Error 1 applies to function <b>code</b>: User code is missing"
+            "Error 1 applies to function <b> code </b>: "
+            "User code &amp;\n token are missing "
             '<p><a href="https://ideas.repec.org/api.html">Back</a>.'
         ),
     )
     repec = Repec("somecode")
 
-    assert repec.get_error(1) == ("code", "User code is missing")
+    assert repec.get_error(1) == ("code", "User code & token are missing")
     mock_get.assert_called_once_with(
         ERROR_LOOKUP_URL, params={"code": "somecode", "number": 1}
     )
@@ -231,3 +236,50 @@ def test_get_error_with_unexpected_response(mock_get) -> None:
         "N/A",
         "Impossible to get error information from RePEc.",
     )
+
+
+@patch("requests.Session.get", side_effect=mocked_http_error_request)
+def test_get_error_http_error(mock_get) -> None:
+    repec = Repec("somecode")
+
+    with pytest.raises(HttpException):
+        repec.get_error(1)
+
+
+@patch("requests.Session.get", side_effect=mocked_requests)
+def test_successful_response_is_cached(mock_get) -> None:
+    repec = Repec("somecode")
+
+    first = repec.get_org_authors("RePEc:edi:bdigvit")
+    second = repec.get_org_authors("RePEc:edi:bdigvit")
+
+    assert first == second
+    mock_get.assert_called_once_with(
+        BASE_URL,
+        params={"code": "somecode", GET_INST_AUTHORS: "RePEc:edi:bdigvit"},
+    )
+
+
+@patch("requests.Session.get")
+def test_repec_error_is_resolved_and_not_cached(mock_get) -> None:
+    api_error = MockResponse(BASE_URL, [{"error": 1}])
+    error_lookup = MockResponse(
+        ERROR_LOOKUP_URL,
+        [],
+        text="Error 1 applies to function <b>code</b>: User code is missing<p>",
+    )
+    mock_get.side_effect = [api_error, error_lookup, api_error, error_lookup]
+    repec = Repec("somecode")
+
+    first = repec.get_org_authors("RePEc:dummy")
+    second = repec.get_org_authors("RePEc:dummy")
+
+    for result in (first, second):
+        assert result.data == []
+        assert result.error == RepecError(
+            code=1,
+            function="code",
+            message="User code is missing",
+            url=BASE_URL,
+        )
+    assert mock_get.call_count == 4

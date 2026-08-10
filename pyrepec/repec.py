@@ -140,8 +140,8 @@ class Repec:
         if match is None:
             return "N/A", "Impossible to get error information from RePEc."
 
-        err_func = html.unescape(match.group("function")).strip()
-        err_msg = html.unescape(match.group("description")).strip()
+        err_func = " ".join(html.unescape(match.group("function")).split())
+        err_msg = " ".join(html.unescape(match.group("description")).split())
 
         return err_func, err_msg
 
