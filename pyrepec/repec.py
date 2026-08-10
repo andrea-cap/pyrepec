@@ -1,15 +1,28 @@
 # -*- coding: utf-8 -*-
-from .models import RepecError, RepecResultList, RepecSingleResult, RepecJelResult
+import html
+import re
+from typing import Optional
 
 import requests
 from requests import Response
 
+from .models import RepecError, RepecJelResult, RepecResultList, RepecSingleResult
+
 BASE_URL = "https://api.repec.org/call.cgi"
+ERROR_LOOKUP_URL = "https://ideas.repec.org/cgi-bin/getapierror.cgi"
 
 # API keywords.
 SHORTID = "shortid"
 CODE = "code"
 ERROR = "error"
+NUMBER = "number"
+
+ERROR_LOOKUP_PATTERN = re.compile(
+    r"Error\s+\d+\s+applies\s+to\s+function\s+"
+    r"<b[^>]*>(?P<function>.*?)</b>\s*:\s*"
+    r"(?P<description>.*?)(?=<p\b|</div>|$)",
+    re.IGNORECASE | re.DOTALL,
+)
 
 # Remote methods.
 GET_JEL_FOR_ITEM = "getjelforitem"
@@ -20,20 +33,19 @@ GET_REF = "getref"
 
 
 class Repec:
-    """
-    Wrapper for REPEC API.
+    """Client for the RePEc API.
 
-    This class provides methods to query upstream API
-    services. It implements a basic in-session cache to avoid multiple calls
-    for the same query.
+    The client provides methods for querying upstream RePEc services. Successful
+    requests are cached for the lifetime of the client to avoid repeated calls
+    for the same method and identifier.
     """
 
     def __init__(self, token: str, **kwargs):
         """
-        Initialize a Repec object.
+        Initialize a RePEc API client.
 
-        :param token: string with the authorization token from Repec
-        :param kwargs: delegated to `requests.Session`
+        :param token: Authorization token issued by RePEc.
+        :param kwargs: Keyword arguments passed to :class:`requests.Session`.
         """
         self.token = token
         self._session = requests.Session(**kwargs)
@@ -41,11 +53,11 @@ class Repec:
 
     def get_org_authors(self, org_id: str) -> RepecResultList:
         """
-        Return the authors beloging to a a given organization.
+        Return the authors belonging to an organization.
 
-        param: org_id: Organization ID (as assigned by RePec)
-        :return: list of author IDs
-        :rtype: an object of :class:`models.RepecResultList`
+        :param org_id: Organization identifier assigned by RePEc.
+        :return: Result containing the matching author records or a RePEc error.
+        :rtype: RepecResultList
         """
         data, error = self._request_data(GET_INST_AUTHORS, org_id)
 
@@ -53,11 +65,11 @@ class Repec:
 
     def get_author_data(self, author_id: str) -> RepecSingleResult:
         """
-        Return all data available for a given author.
+        Return all available data for an author.
 
-        :param author_id: Author ID
-        :return: Author data
-        :rtype: an object of :class:`models.RepecSingleResult`
+        :param author_id: RePEc author identifier.
+        :return: Result containing the author record or a RePEc error.
+        :rtype: RepecSingleResult
         """
         data, error = self._request_data(GET_AUTHOR_RECORD_FULL, author_id)
 
@@ -74,11 +86,11 @@ class Repec:
 
     def get_authors_for_item(self, item_id: str) -> RepecResultList:
         """
-        Return the authors of an item (paper or article).
+        Return the authors of a paper or article.
 
-        :param item_id: Item ID for paper or article
-        :return: author IDs
-        :rtype: an object of :class:`models.RepecResultList`
+        :param item_id: RePEc identifier for the paper or article.
+        :return: Result containing the matching author records or a RePEc error.
+        :rtype: RepecResultList
         """
         data, error = self._request_data(GET_AUTHORS_FOR_ITEM, item_id)
 
@@ -86,13 +98,11 @@ class Repec:
 
     def get_jel_codes(self, item_id: str) -> RepecJelResult:
         """
-        Return the list of JEL codes associated to an item.
+        Return the JEL codes associated with a paper or article.
 
-        Items can be papers or articles and are identified by an item_id.
-
-        :param item_id: ID of the item
-        :return: list of JEL codes
-        :rtype: an object of :class:`models.RepecJelResult`
+        :param item_id: RePEc identifier for the paper or article.
+        :return: Result containing the matching JEL codes or a RePEc error.
+        :rtype: RepecJelResult
         """
         data, error = self._request_data(GET_JEL_FOR_ITEM, item_id)
 
@@ -100,13 +110,11 @@ class Repec:
 
     def get_ref(self, item_id: str) -> RepecSingleResult:
         """
-        Return bibliographic references of an item.
+        Return the bibliographic references of a paper or article.
 
-        Items can be papers or articles and are identified by an item_id.
-
-        :param item_id: ID of the item
-        :return: list of JEL codes
-        :rtype: an object of :class:`models.RepecSingleResult`
+        :param item_id: RePEc identifier for the paper or article.
+        :return: Result containing bibliographic reference data or a RePEc error.
+        :rtype: RepecSingleResult
         """
 
         data, error = self._request_data(GET_REF, item_id)
@@ -114,48 +122,39 @@ class Repec:
 
         return RepecSingleResult(data=data, error=error)
 
-    def get_error(self, err_code: int) -> list[str, str]:
+    def get_error(self, err_code: int) -> tuple[str, str]:
         """
-        Return the full error description given its numerical code.
+        Return the description associated with a numerical RePEc error code.
 
-        :param err_code: Error code
-        :return: Error function and message
-        :rtype: an tuple of string
+        :param err_code: Numerical error code returned by RePEc.
+        :return: Pair containing the originating function and error description.
+        :rtype: tuple[str, str]
         """
-        # Prepare payload for HTTP request.
-        payload = {}
-        payload[CODE] = self.token
-        payload[ERROR] = err_code
+        payload = {CODE: self.token, NUMBER: err_code}
 
-        # Send the requests to REPEC API.
-        resp = self._session.get(BASE_URL, params=payload)
+        resp = self._session.get(ERROR_LOOKUP_URL, params=payload)
 
-        # Check for HTTP 4xx-6xx errors.
         resp.raise_for_status()
-        json_data = resp.json()
 
-        # Error here should be a wrong token.
-        if ERROR in json_data[0]:
-            return (
-                "N/A",
-                "Impossible to get an error information. Probably token is not valid.",
-            )
+        match = ERROR_LOOKUP_PATTERN.search(resp.text)
+        if match is None:
+            return "N/A", "Impossible to get error information from RePEc."
 
-        err_func = json_data[0]["function"]
-        err_msg = json_data[0]["description"]
+        err_func = " ".join(html.unescape(match.group("function")).split())
+        err_msg = " ".join(html.unescape(match.group("description")).split())
 
         return err_func, err_msg
 
-    def _request_data(self, api_method: str, query_key: str) -> list[list, RepecError]:
+    def _request_data(
+        self, api_method: str, query_key: str
+    ) -> tuple[list, Optional[RepecError]]:
         """
-        Request data from RePec API.
+        Request data from a RePEc API method.
 
-        :param api_method: API remote method
-        :param query_key: Query key for API
-        :return: list of results and an object for remote errors (or None if no
-            errors are returned)
-        :rtype: tuple with a list of `dicts` and an object of
-            :class:`models.RepecResultList`
+        :param api_method: Name of the remote API method.
+        :param query_key: Identifier passed to the remote method.
+        :return: Pair containing response items and an optional RePEc error.
+        :rtype: tuple[list, Optional[RepecError]]
         """
         # Init cache for this method.
         if api_method not in self._cache:
@@ -177,7 +176,7 @@ class Repec:
         resp.raise_for_status()
 
         # Process data received by REPEC API and prepare the final data
-        # structure to retun.
+        # structure to return.
         data, error = self._process_data(resp)
 
         # Cache the result for future calls.
@@ -186,18 +185,16 @@ class Repec:
 
         return data, error
 
-    def _process_data(self, resp: Response) -> list[list, RepecError]:
+    def _process_data(self, resp: Response) -> tuple[list, Optional[RepecError]]:
         """
-        Cast HTTP response from Repec to the models.
+        Convert an HTTP response into data and an optional RePEc error.
 
-        :param respo: HTTP response (`requests.Response`)
-        :return: list of results and an object for remote errors (or None if no
-            errors are returned)
-        :rtype: tuple with a list of `dicts` and an object of
-            :class:`models.RepecResultList`
+        :param resp: Response returned by :class:`requests.Session`.
+        :return: Pair containing decoded response items and an optional error.
+        :rtype: tuple[list, Optional[RepecError]]
         """
 
-        # if we are here but the response il empty, raise an error:
+        # If the response is empty, return an error.
         if len(resp.text.strip()) == 0:
             return [], RepecError(code=404, message="Not found", url=resp.url)
 
@@ -210,7 +207,6 @@ class Repec:
 
         # Check for errors raised by REPEC API.
         if ERROR in api_data[0]:
-
             # Parse the error from response.
             dict_error = api_data[0]
             err_code = dict_error[ERROR]

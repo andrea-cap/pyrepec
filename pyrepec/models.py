@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Data Models for pyrepec."""
+"""Result and error models returned by the PyRepec client."""
 
 from typing import List, Optional, Union
 
@@ -8,16 +8,15 @@ from pydantic import BaseModel
 
 
 class RepecError(BaseModel):
-    """
-    Pydantic model class for errors issued by Repec API services.
+    """Error returned by a RePEc API service.
 
-    :param code: Numerical error code
+    :param code: Numerical RePEc error code, when available.
     :type code: int or None
-    :param message: Description of the error
+    :param message: Human-readable description of the error.
     :type message: str
-    :param function: Repec method that has originated the error
+    :param function: RePEc function that originated the error.
     :type function: str
-    :param url: Full URL of Repec API that as been called
+    :param url: Full URL of the RePEc API request.
     :type url: str or None
     """
 
@@ -28,13 +27,12 @@ class RepecError(BaseModel):
 
 
 class RepecResultList(BaseModel):
-    """
-    Pydantic model class for results returned by REPEC API services.
+    """Result containing a list of RePEc records.
 
-    :param data: List of result items
+    :param data: Records returned by the API, or an empty list on error.
     :type data: List of dicts
-    :param error: Error issued by Repec API services (if any)
-    :type error: :class:`models.RepecError` or None
+    :param error: RePEc error, or ``None`` when the request succeeds.
+    :type error: RepecError or None
     """
 
     data: List[dict]
@@ -42,13 +40,12 @@ class RepecResultList(BaseModel):
 
 
 class RepecSingleResult(BaseModel):
-    """
-    Pydantic model class for results returned by REPEC API services.
+    """Result containing a single RePEc record.
 
-    :param data: Result item
+    :param data: Record returned by the API, or an empty dictionary on error.
     :type data: dict
-    :param error: Error issued by Repec API services (if any)
-    :type error: :class:`models.RepecError` or None
+    :param error: RePEc error, or ``None`` when the request succeeds.
+    :type error: RepecError or None
     """
 
     data: dict
@@ -56,13 +53,12 @@ class RepecSingleResult(BaseModel):
 
 
 class RepecJelResult(BaseModel):
-    """
-    Pydantic model class for JEL codes returned by REPEC API services.
+    """Result containing JEL codes returned by RePEc.
 
-    :param data: List of JEL codes
+    :param data: JEL codes returned by the API, or an empty list on error.
     :type data: List of str
-    :param error: Error issued by Repec API services (if any)
-    :type error: :class:`models.RepecError` or None
+    :param error: RePEc error, or ``None`` when the request succeeds.
+    :type error: RepecError or None
     """
 
     data: list[str]

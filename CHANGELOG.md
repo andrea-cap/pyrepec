@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.2.2 (2026-08-10)
+
+### New
+
+* Tests added/improved, added normalization of html parsing. [andrea]
+
+### Changes
+
+* New url for checking api errors. [andrea]
+
+* Updated README. [andrea]
+
+* Improved docstring. [andrea]
+
+* Update rules. [andrea]
+
+* Migration from poetry/black to uv/ruff, removed sphinx, other changes. [andrea]
+
+### Fix
+
+* Restored pystache for changelog. [andrea]
 
 ## v0.2.0 (2024-11-06)
 

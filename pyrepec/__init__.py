@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 
-"""
-Main package for pyrepec
+"""Public package interface for the PyRepec client.
 
-This is module contain the main class, `RePEc` and misc supporting
-code: Exceptions and error messages.
-
-The RePEc authors' API is documented here: https://ideas.repec.org/api.html
-
+The package exposes :class:`Repec`, the main client for the RePEc API. Result
+and error models are available from :mod:`pyrepec.models`.
 """
 
-from .repec import Repec
+from .repec import Repec as Repec
+
+__all__ = ["Repec"]
