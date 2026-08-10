@@ -12,6 +12,7 @@ from pyrepec.models import (
     RepecSingleResult,
 )
 from pyrepec.repec import (
+    ERROR_LOOKUP_URL,
     GET_AUTHOR_RECORD_FULL,
     GET_AUTHORS_FOR_ITEM,
     GET_INST_AUTHORS,
@@ -198,3 +199,35 @@ def test_get_ref(mck) -> None:
     assert isinstance(res, RepecSingleResult)
     assert res.data == {"key": "value"}
     assert res.error is None
+
+
+@patch("requests.Session.get")
+def test_get_error(mock_get) -> None:
+    mock_get.return_value = MockResponse(
+        ERROR_LOOKUP_URL,
+        [],
+        text=(
+            "<h1>RePEc API Error lookup</h1>"
+            "Error 1 applies to function <b>code</b>: User code is missing"
+            '<p><a href="https://ideas.repec.org/api.html">Back</a>.'
+        ),
+    )
+    repec = Repec("somecode")
+
+    assert repec.get_error(1) == ("code", "User code is missing")
+    mock_get.assert_called_once_with(
+        ERROR_LOOKUP_URL, params={"code": "somecode", "number": 1}
+    )
+
+
+@patch("requests.Session.get")
+def test_get_error_with_unexpected_response(mock_get) -> None:
+    mock_get.return_value = MockResponse(
+        ERROR_LOOKUP_URL, [], text="<html>Unexpected response</html>"
+    )
+    repec = Repec("somecode")
+
+    assert repec.get_error(1) == (
+        "N/A",
+        "Impossible to get error information from RePEc.",
+    )

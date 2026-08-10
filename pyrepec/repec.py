@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import html
+import re
 from typing import Optional
 
 import requests
@@ -7,11 +9,20 @@ from requests import Response
 from .models import RepecError, RepecJelResult, RepecResultList, RepecSingleResult
 
 BASE_URL = "https://api.repec.org/call.cgi"
+ERROR_LOOKUP_URL = "https://ideas.repec.org/cgi-bin/getapierror.cgi"
 
 # API keywords.
 SHORTID = "shortid"
 CODE = "code"
 ERROR = "error"
+NUMBER = "number"
+
+ERROR_LOOKUP_PATTERN = re.compile(
+    r"Error\s+\d+\s+applies\s+to\s+function\s+"
+    r"<b[^>]*>(?P<function>.*?)</b>\s*:\s*"
+    r"(?P<description>.*?)(?=<p\b|</div>|$)",
+    re.IGNORECASE | re.DOTALL,
+)
 
 # Remote methods.
 GET_JEL_FOR_ITEM = "getjelforitem"
@@ -119,27 +130,18 @@ class Repec:
         :return: Pair containing the originating function and error description.
         :rtype: tuple[str, str]
         """
-        # Prepare payload for HTTP request.
-        payload = {}
-        payload[CODE] = self.token
-        payload[ERROR] = err_code
+        payload = {CODE: self.token, NUMBER: err_code}
 
-        # Send the requests to REPEC API.
-        resp = self._session.get(BASE_URL, params=payload)
+        resp = self._session.get(ERROR_LOOKUP_URL, params=payload)
 
-        # Check for HTTP 4xx-6xx errors.
         resp.raise_for_status()
-        json_data = resp.json()
 
-        # Error here should be a wrong token.
-        if ERROR in json_data[0]:
-            return (
-                "N/A",
-                "Impossible to get an error information. Probably token is not valid.",
-            )
+        match = ERROR_LOOKUP_PATTERN.search(resp.text)
+        if match is None:
+            return "N/A", "Impossible to get error information from RePEc."
 
-        err_func = json_data[0]["function"]
-        err_msg = json_data[0]["description"]
+        err_func = html.unescape(match.group("function")).strip()
+        err_msg = html.unescape(match.group("description")).strip()
 
         return err_func, err_msg
 
