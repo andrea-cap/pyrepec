@@ -7,7 +7,7 @@ PyRepec is a small Python client for the [RePEc API](https://ideas.repec.org/api
 It provides typed result models, basic in-session caching, and helpers for querying
 authors, publications, bibliographic references, and JEL codes.
 
-Current Version: 0.2.3
+Current Version: 0.2.4
 
 ## Requirements
 
