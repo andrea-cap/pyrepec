@@ -1,7 +1,7 @@
 # PyRepec
 
-[![PyPI downloads](https://img.shields.io/pypi/dm/pyrepec)](https://pypi.org/project/pyrepec/)
-[![Python versions](https://img.shields.io/pypi/pyversions/pyrepec)](https://pypi.org/project/pyrepec/)
+[![CI](https://github.com/andrea-cap/pyrepec/actions/workflows/python-app.yml/badge.svg)](https://github.com/andrea-cap/pyrepec/actions/workflows/python-app.yml)
+[![PyPI downloads](https://api.pepy.tech/badge/pyrepec)](https://pepy.tech/projects/pyrepec)
 
 PyRepec is a small Python client for the [RePEc API](https://ideas.repec.org/api.html).
 It provides typed result models, basic in-session caching, and helpers for querying
