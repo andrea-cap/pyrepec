@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.5 (2026-09-09)
+
+### Changes
+
+- Require Python 3.12 or newer.
+- Update runtime and development dependencies.
+- Update the CI Python matrix.
+- Replace README badges.
+
 ## v0.2.2 (2026-08-10)
 
 ### New
