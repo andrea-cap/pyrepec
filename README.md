@@ -11,7 +11,7 @@ Current Version: 0.2.4
 
 ## Requirements
 
-- Python 3.9 or newer
+- Python 3.12 or newer
 - A RePEc API token
 
 ## Installation
